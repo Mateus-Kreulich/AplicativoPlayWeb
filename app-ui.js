@@ -514,17 +514,20 @@ function gerarPDF(){
     totalsHtml
   });
 
-  const popup=window.open("","_blank","width=900,height=700");
-  if(!popup){
+  try{
+    const blob=new Blob([reportHtml],{type:"text/html;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement("a");
+    link.href=url;
+    link.download="relatorio_registro_horas.html";
+    link.click();
+    URL.revokeObjectURL(url);
+    showFeedback("Relatório HTML exportado. Abra o arquivo e use imprimir para gerar PDF.");
+  }catch(err){
+    UiUtils.logEvent("warn","Falha ao exportar relatório HTML",err?.message);
     downloadCsvFallback();
-    showFeedback("Popup bloqueado: CSV exportado como alternativa.");
-    return;
+    showFeedback("Falha ao exportar relatório HTML. CSV exportado como alternativa.");
   }
-
-  popup.document.write(reportHtml);
-  popup.document.close();
-  popup.focus();
-  setTimeout(()=>popup.print(),300);
 }
 
 function deleteRow(btn){
