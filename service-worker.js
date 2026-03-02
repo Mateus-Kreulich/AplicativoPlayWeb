@@ -74,8 +74,13 @@ async function staleWhileRevalidate(request) {
     })
     .catch(() => null);
 
+  if (cachedResponse) {
+    networkPromise.catch(() => null);
+    return cachedResponse;
+  }
+
   const networkResponse = await networkPromise;
-  return cachedResponse || networkResponse || Response.error();
+  return networkResponse || Response.error();
 }
 
 self.addEventListener("activate", event => {

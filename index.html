@@ -38,20 +38,20 @@ DRAGONPOINT INITIALIZING...
 DragonPoint
 </div>
 <div>
-<button type="button" aria-label="Ir para página inicial" onclick="showPage('home')">HOME</button>
-<button type="button" aria-label="Ir para página de registros" onclick="showPage('registro')">REGISTRO</button>
+<button id="navHome" type="button" aria-label="Ir para página inicial">HOME</button>
+<button id="navRegistro" type="button" aria-label="Ir para página de registros">REGISTRO</button>
 </div>
 </div>
 
 <div class="autosave" id="saveStatus" aria-live="polite">Pronto</div>
 <div id="appFeedback" role="status" aria-live="polite" style="position:fixed;left:20px;top:80px;font-size:12px;color:var(--neon-cyan)"></div>
-<div id="updateBanner" style="display:none;position:fixed;left:20px;bottom:20px;z-index:20" class="card"><span>Nova versão disponível.</span> <button type="button" onclick="applyAppUpdate()">Atualizar</button></div>
+<div id="updateBanner" style="display:none;position:fixed;left:20px;bottom:20px;z-index:20" class="card"><span>Nova versão disponível.</span> <button id="btnUpdateApp" type="button">Atualizar</button></div>
 
 <main id="mainContent" class="container">
 
 <div id="home" class="page active card">
 <h2 style="text-align:center;color:var(--neon-cyan)">BATER PONTO</h2>
-<button type="button" class="big-button" aria-label="Registrar horário do ponto" onclick="registrarPonto()">⚡ REGISTRAR HORÁRIO ⚡</button>
+<button id="btnRegistrarPonto" type="button" class="big-button" aria-label="Registrar horário do ponto">⚡ REGISTRAR HORÁRIO ⚡</button>
 <div class="status-next" id="nextStatus">Próximo: Entrada</div>
 <div id="confirmacaoVisual" class="feedback-confirmacao" aria-live="polite">✓ Ponto registrado</div>
 </div>
@@ -59,12 +59,14 @@ DragonPoint
 <div id="registro" class="page card">
 <h2 style="color:var(--neon-green)">REGISTROS</h2>
 
-<button type="button" aria-label="Abrir configurações" onclick="toggleConfig()">⚙ Configurações</button>
-<button type="button" aria-label="Importar dados de arquivo JSON" onclick="importarArquivoJSON()">Importar JSON</button>
-<button type="button" aria-label="Vincular arquivo JSON" onclick="selecionarArquivo()">Vincular JSON</button>
-<button type="button" aria-label="Salvar dados no arquivo JSON vinculado" onclick="salvarArquivoManual()">Salvar JSON</button>
-<button type="button" aria-label="Exportar relatório HTML ou CSV" onclick="gerarPDF()">RELATÓRIO</button>
-<button type="button" aria-label="Adicionar uma nova linha de dia" onclick="addRow()">Adicionar Dia</button>
+<div class="registro-actions">
+<button id="btnToggleConfig" type="button" aria-label="Abrir configurações">⚙ Configurações</button>
+<button id="btnImportJson" type="button" aria-label="Importar dados de arquivo JSON">Importar JSON</button>
+<button id="btnLinkJson" type="button" aria-label="Vincular arquivo JSON">Vincular JSON</button>
+<button id="btnSaveJson" type="button" aria-label="Salvar dados no arquivo JSON vinculado">Salvar JSON</button>
+<button id="btnReport" type="button" aria-label="Exportar relatório HTML ou CSV">RELATÓRIO</button>
+<button id="btnAddRow" type="button" aria-label="Adicionar uma nova linha de dia">Adicionar Dia</button>
+</div>
 
 <div class="config-panel" id="configPanel">
 <label for="hourlyRate">Valor Hora Normal:</label>
@@ -78,7 +80,7 @@ DragonPoint
 <br>
 
 <p id="tableHelp" style="margin:0 0 8px 0;font-size:12px;color:var(--neon-cyan)">Use Tab para navegar pelas células e Enter para confirmar edição.</p>
-<table aria-label="Tabela de registros de horas" aria-describedby="tableHelp">
+<div class="table-wrap"><table aria-label="Tabela de registros de horas" aria-describedby="tableHelp">
 <caption style="text-align:left;padding:8px 0;color:var(--neon-cyan)">Registros de jornada e cálculo de horas</caption>
 <thead>
 <tr>
@@ -106,7 +108,7 @@ DragonPoint
 <td></td>
 </tr>
 </tfoot>
-</table>
+</table></div>
 </div>
 
 </main>

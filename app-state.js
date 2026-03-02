@@ -6,10 +6,11 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   const BACKUP_SUFFIX = "::backup";
+  const CURRENT_STATE_VERSION = 3;
 
   function createDefaultState() {
     return {
-      version: 1,
+      version: CURRENT_STATE_VERSION,
       settings: { hourlyRate: "12.50", overtimeRate: "18.75", holidayRate: "25.00" },
       rows: []
     };
@@ -52,7 +53,9 @@
   function loadFromStorage(storageKey, migrateFn) {
     const backupKey = getBackupKey(storageKey);
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return { ok: true, state: createDefaultState(), source: "default" };
+    if (!raw) {
+      return { ok: true, state: createDefaultState(), source: "default" };
+    }
 
     const migrated = parseAndMigrate(raw, migrateFn);
     if (migrated) {
@@ -84,8 +87,13 @@
     const payload = JSON.stringify(state);
     const backupKey = getBackupKey(storageKey);
 
-    localStorage.setItem(storageKey, payload);
-    localStorage.setItem(backupKey, payload);
+    try {
+      localStorage.setItem(backupKey, payload);
+      localStorage.setItem(storageKey, payload);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: "Falha ao persistir estado local." };
+    }
   }
 
   return { createDefaultState, collectRowsFromTable, loadFromStorage, saveToStorage, getBackupKey };

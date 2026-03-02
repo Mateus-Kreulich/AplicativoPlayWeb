@@ -183,3 +183,76 @@ input,select{
 @media(max-width:1024px){
   table{display:block;overflow-x:auto;white-space:nowrap}
 }
+
+
+.registro-actions{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  gap:10px;
+  margin:12px 0;
+}
+
+.table-wrap{
+  width:100%;
+  overflow:auto;
+  border:1px solid rgba(0,234,255,0.25);
+  border-radius:10px;
+}
+
+#registro table{
+  min-width:980px;
+}
+
+#registro input,
+#registro select{
+  width:100%;
+  min-width:88px;
+}
+
+@media(max-width:768px){
+  .hud{
+    height:auto;
+    padding:10px 12px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+
+  .container{
+    margin-top:120px;
+    padding:12px;
+  }
+
+  .card{
+    padding:12px;
+  }
+
+  .registro-actions{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .autosave{
+    right:10px;
+    top:72px;
+  }
+
+  #updateBanner{
+    left:10px !important;
+    right:10px;
+    width:auto;
+  }
+}
+
+@media(max-width:520px){
+  .registro-actions{
+    grid-template-columns:1fr;
+  }
+
+  .logo{
+    font-size:14px;
+  }
+
+  .logo svg{
+    width:30px;
+    height:30px;
+  }
+}

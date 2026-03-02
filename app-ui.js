@@ -94,7 +94,7 @@ function showPage(id){
 /* AUTOSAVE */
 function showSaving(){elements.saveStatus.textContent="Salvando...";elements.saveStatus.className="autosave saving";}
 function showSaved(){elements.saveStatus.textContent="Salvo ✓";elements.saveStatus.className="autosave saved";setTimeout(()=>{elements.saveStatus.textContent="Pronto";elements.saveStatus.className="autosave";},1500);}
-function scheduleSave(){showSaving();if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveAll(),600);}
+function scheduleSave(){showSaving();if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveAll(),350);}
 
 function flushPendingSave(){
   if(!saveTimer)return;
@@ -118,7 +118,12 @@ function collectState(){
 async function saveAll(options={}){
   const {silent=false}=options;
   const state=collectState();
-  AppState.saveToStorage(STORAGE_KEY,state);
+  const persisted=AppState.saveToStorage(STORAGE_KEY,state);
+  if(!persisted.ok){
+    UiUtils.logEvent("error","Falha ao salvar no armazenamento local",persisted.error);
+    showFeedback("Sem espaço para salvar localmente. Exporte/limpe dados e tente novamente.");
+    return;
+  }
 
   if(fileHandle){
     try{
@@ -128,7 +133,7 @@ async function saveAll(options={}){
     }catch(err){
       UiUtils.logEvent("warn","Falha ao salvar no arquivo vinculado.",err?.message);
       fileHandle=null;
-      alert("Não foi possível salvar no arquivo vinculado. Vincule novamente para continuar.");
+      showFeedback("Falha ao salvar no arquivo vinculado. Vincule novamente.");
     }
   }
 
@@ -138,7 +143,7 @@ async function saveAll(options={}){
 /* FILE SYSTEM */
 async function selecionarArquivo(){
   if(!window.showSaveFilePicker){
-    alert("Seu navegador não suporta vincular arquivo automaticamente. Use apenas o autosave local.");
+    showFeedback("Seu navegador não suporta vinculação automática de arquivo.");
     return;
   }
 
@@ -147,15 +152,15 @@ async function selecionarArquivo(){
       suggestedName:"registro_horas.json",
       types:[{description:"JSON",accept:{"application/json":[".json"]}}]
     });
-    alert("Arquivo vinculado com sucesso.");
+    showFeedback("Arquivo vinculado com sucesso.");
   }catch(err){
     if(err && err.name!=="AbortError"){
-      alert("Não foi possível vincular o arquivo.");
+      showFeedback("Não foi possível vincular o arquivo.");
     }
   }
 }
 function salvarArquivoManual(){
-  if(!fileHandle){alert("Vincule um arquivo primeiro.");return;}
+  if(!fileHandle){showFeedback("Vincule um arquivo primeiro.");return;}
   saveAll();
 }
 
@@ -548,6 +553,22 @@ document.addEventListener("DOMContentLoaded",()=>{
   window.addEventListener("click",initAudioContext,{once:true});
   window.addEventListener("mousedown",initAudioContext,{once:true});
   window.addEventListener("keydown",initAudioContext,{once:true});
+
+  const bindClick=(id,handler)=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener("click",handler);
+  };
+
+  bindClick("navHome",()=>showPage("home"));
+  bindClick("navRegistro",()=>showPage("registro"));
+  bindClick("btnRegistrarPonto",registrarPonto);
+  bindClick("btnToggleConfig",toggleConfig);
+  bindClick("btnImportJson",importarArquivoJSON);
+  bindClick("btnLinkJson",selecionarArquivo);
+  bindClick("btnSaveJson",salvarArquivoManual);
+  bindClick("btnReport",gerarPDF);
+  bindClick("btnAddRow",()=>addRow());
+  bindClick("btnUpdateApp",applyAppUpdate);
   window.addEventListener("beforeunload",flushPendingSave);
   document.addEventListener("visibilitychange",()=>{ if(document.hidden)flushPendingSave(); });
   loadState();
