@@ -45,6 +45,9 @@ const STATE_VERSION=StateSchema.CURRENT_VERSION;
 const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 let saveTimer=null;
 let fileHandle=null;
+const FILE_HANDLE_DB_NAME="dragonpoint-file-handle-db";
+const FILE_HANDLE_STORE_NAME="handles";
+const FILE_HANDLE_KEY="linked-json-handle";
 let audioCtx=null;
 let soundEnabled=true;
 
@@ -69,6 +72,129 @@ const elements={
 function showFeedback(message){
   elements.appFeedback.textContent=message;
   setTimeout(()=>{ if(elements.appFeedback.textContent===message) elements.appFeedback.textContent=""; },3000);
+}
+
+
+
+function supportsPersistentFileHandle(){
+  return !!(window.indexedDB && window.showSaveFilePicker);
+}
+
+function openFileHandleDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(FILE_HANDLE_DB_NAME,1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(FILE_HANDLE_STORE_NAME)){
+        db.createObjectStore(FILE_HANDLE_STORE_NAME);
+      }
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function saveLinkedFileHandle(handle){
+  if(!supportsPersistentFileHandle())return;
+  try{
+    const db=await openFileHandleDb();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(FILE_HANDLE_STORE_NAME,"readwrite");
+      tx.objectStore(FILE_HANDLE_STORE_NAME).put(handle,FILE_HANDLE_KEY);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+      tx.onabort=()=>reject(tx.error);
+    });
+    db.close();
+  }catch(err){
+    UiUtils.logEvent("warn","Falha ao persistir vínculo de arquivo",err?.message);
+  }
+}
+
+async function loadLinkedFileHandle(){
+  if(!supportsPersistentFileHandle())return null;
+  try{
+    const db=await openFileHandleDb();
+    const handle=await new Promise((resolve,reject)=>{
+      const tx=db.transaction(FILE_HANDLE_STORE_NAME,"readonly");
+      const req=tx.objectStore(FILE_HANDLE_STORE_NAME).get(FILE_HANDLE_KEY);
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+    db.close();
+    return handle;
+  }catch(err){
+    UiUtils.logEvent("warn","Falha ao recuperar vínculo de arquivo",err?.message);
+    return null;
+  }
+}
+
+async function clearLinkedFileHandle(){
+  if(!supportsPersistentFileHandle())return;
+  try{
+    const db=await openFileHandleDb();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(FILE_HANDLE_STORE_NAME,"readwrite");
+      tx.objectStore(FILE_HANDLE_STORE_NAME).delete(FILE_HANDLE_KEY);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error);
+      tx.onabort=()=>reject(tx.error);
+    });
+    db.close();
+  }catch(err){
+    UiUtils.logEvent("warn","Falha ao limpar vínculo de arquivo",err?.message);
+  }
+}
+
+async function ensureFileHandlePermission(handle,{interactive=false}={}){
+  if(!handle || typeof handle.queryPermission!=="function")return false;
+  const options={mode:"readwrite"};
+  try{
+    let permission=await handle.queryPermission(options);
+    if(permission==="granted")return true;
+    if(permission==="prompt" && interactive && typeof handle.requestPermission==="function"){
+      permission=await handle.requestPermission(options);
+      return permission==="granted";
+    }
+    return false;
+  }catch(err){
+    UiUtils.logEvent("warn","Falha ao consultar permissão do arquivo",err?.message);
+    return false;
+  }
+}
+
+async function importStateFromLinkedFile(handle){
+  if(!handle)return false;
+  try{
+    const file=await handle.getFile();
+    const text=await file.text();
+    if(!text.trim())return false;
+    const result=UiUtils.parseImportJson(text,StateSchema.migrateState);
+    if(!result.ok){
+      showFeedback("Arquivo vinculado inválido. Usando dados locais.");
+      return false;
+    }
+    applyStateToUi(result.state);
+    return true;
+  }catch(err){
+    UiUtils.logEvent("warn","Falha ao ler arquivo vinculado",err?.message);
+    return false;
+  }
+}
+
+async function restoreLinkedFileOnStartup(){
+  const restored=await loadLinkedFileHandle();
+  if(!restored)return;
+
+  fileHandle=restored;
+  const hasPermission=await ensureFileHandlePermission(fileHandle,{interactive:false});
+  if(!hasPermission)return;
+
+  const imported=await importStateFromLinkedFile(fileHandle);
+  if(imported){
+    scheduleSave();
+    showFeedback("Arquivo JSON vinculado carregado automaticamente.");
+  }
 }
 
 function clearTable(){
@@ -133,6 +259,7 @@ async function saveAll(options={}){
     }catch(err){
       UiUtils.logEvent("warn","Falha ao salvar no arquivo vinculado.",err?.message);
       fileHandle=null;
+      clearLinkedFileHandle();
       showFeedback("Falha ao salvar no arquivo vinculado. Vincule novamente.");
     }
   }
@@ -152,7 +279,18 @@ async function selecionarArquivo(){
       suggestedName:"registro_horas.json",
       types:[{description:"JSON",accept:{"application/json":[".json"]}}]
     });
-    showFeedback("Arquivo vinculado com sucesso.");
+
+    const granted=await ensureFileHandlePermission(fileHandle,{interactive:true});
+    if(!granted){
+      showFeedback("Permissão negada para o arquivo vinculado.");
+      fileHandle=null;
+      return;
+    }
+
+    await saveLinkedFileHandle(fileHandle);
+    await importStateFromLinkedFile(fileHandle);
+    scheduleSave();
+    showFeedback("Arquivo vinculado com sucesso. Será reaberto automaticamente.");
   }catch(err){
     if(err && err.name!=="AbortError"){
       showFeedback("Não foi possível vincular o arquivo.");
@@ -572,6 +710,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   window.addEventListener("beforeunload",flushPendingSave);
   document.addEventListener("visibilitychange",()=>{ if(document.hidden)flushPendingSave(); });
   loadState();
+  restoreLinkedFileOnStartup().catch(()=>{});
   if(!elements.timeSheetBody.querySelector("tr"))addRow();
 
   if("serviceWorker" in navigator){
