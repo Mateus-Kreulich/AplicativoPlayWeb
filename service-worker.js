@@ -1,4 +1,5 @@
-const CACHE_NAME = "dragonpoint-v8";
+const CACHE_NAME = "dragonpoint-v9";
+const SW_VERSION = "v9";
 const urlsToCache = [
   "./",
   "./index.html",
@@ -85,6 +86,8 @@ self.addEventListener("activate", event => {
       await self.registration.navigationPreload.enable();
     }
     await self.clients.claim();
+    const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    clients.forEach(client => client.postMessage({ type: "SW_ACTIVATED", version: SW_VERSION }));
   })());
 });
 

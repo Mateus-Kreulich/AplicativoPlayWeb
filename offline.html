@@ -8,10 +8,14 @@
 </head>
 <body>
   <main class="container" aria-labelledby="offlineTitle">
-    <div class="card" style="text-align:center;max-width:640px;margin:120px auto 0;">
+    <div class="card" style="text-align:center;max-width:680px;margin:120px auto 0;">
       <h2 id="offlineTitle" style="color:var(--neon-cyan)">Você está offline</h2>
-      <p>Não conseguimos carregar os dados mais recentes. Verifique sua conexão e tente novamente.</p>
-      <button type="button" onclick="location.reload()" aria-label="Tentar recarregar a aplicação">Tentar novamente</button>
+      <p>Não conseguimos carregar os dados mais recentes. Ainda é possível abrir a aplicação e usar dados locais já salvos.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button type="button" onclick="location.href='./index.html'" aria-label="Abrir aplicativo com dados locais">Abrir aplicativo</button>
+        <button type="button" onclick="location.reload()" aria-label="Tentar recarregar a aplicação">Tentar novamente</button>
+      </div>
+      <p style="font-size:12px;opacity:0.85;margin-top:14px;">Dica: ative o modo debug com <code>localStorage.setItem('dragonpoint_debug','1')</code> para investigar eventos locais.</p>
     </div>
   </main>
 </body>

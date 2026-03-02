@@ -27,6 +27,16 @@ test('parseImportJson valida json e estrutura migrável', () => {
   assert.equal(badSchema.ok, false);
 });
 
+
+test('parseImportJson retorna erro amigável se migração lançar exceção', () => {
+  const failedMigration = UiUtils.parseImportJson('{"version":1}', () => {
+    throw new Error('boom');
+  });
+
+  assert.equal(failedMigration.ok, false);
+  assert.equal(failedMigration.error, 'Falha ao processar dados importados.');
+});
+
 test('buildReportHtml inclui metadados e tabela', () => {
   const html = UiUtils.buildReportHtml({
     title: 'Relatório',

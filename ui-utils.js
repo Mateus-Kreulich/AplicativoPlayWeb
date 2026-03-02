@@ -23,7 +23,13 @@
       return { ok: false, error: 'JSON inválido.' };
     }
 
-    const migrated = migrateFn(parsed);
+    let migrated;
+    try {
+      migrated = migrateFn(parsed);
+    } catch {
+      return { ok: false, error: 'Falha ao processar dados importados.' };
+    }
+
     if (!migrated) {
       return { ok: false, error: 'Estrutura de dados não suportada.' };
     }
@@ -35,12 +41,27 @@
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><link rel="stylesheet" href="./styles.css"></head><body><main class="container"><div class="card"><h2>${title}</h2><p>Gerado em: ${generatedAt}</p>${tableHtml}${totalsHtml}</div></main></body></html>`;
   }
 
-  function logEvent(level, message, data) {
-    const payload = { level, message, data: data || null, at: new Date().toISOString() };
-    if (level === 'error') console.error('[DragonPoint]', payload);
-    else if (level === 'warn') console.warn('[DragonPoint]', payload);
-    else console.log('[DragonPoint]', payload);
+
+  function isDebugEnabled() {
+    return localStorage.getItem("dragonpoint_debug") === "1";
   }
 
-  return { escapeCsvValue, rowsToCsv, parseImportJson, buildReportHtml, logEvent };
+  function persistClientLog(payload) {
+    const key = "dragonpoint_logs";
+    const current = JSON.parse(localStorage.getItem(key) || "[]");
+    current.push(payload);
+    while (current.length > 100) current.shift();
+    localStorage.setItem(key, JSON.stringify(current));
+  }
+
+  function logEvent(level, message, data) {
+    const payload = { level, message, data: data || null, at: new Date().toISOString() };
+    persistClientLog(payload);
+    if (!isDebugEnabled() && level !== "error") return;
+    if (level === "error") console.error("[DragonPoint]", payload);
+    else if (level === "warn") console.warn("[DragonPoint]", payload);
+    else console.log("[DragonPoint]", payload);
+  }
+
+  return { escapeCsvValue, rowsToCsv, parseImportJson, buildReportHtml, logEvent, isDebugEnabled };
 });

@@ -80,7 +80,7 @@ function applyStateToUi(state){
   elements.overtimeRate.value=state.settings.overtimeRate ?? elements.overtimeRate.value;
   elements.holidayRate.value=state.settings.holidayRate ?? elements.holidayRate.value;
   clearTable();
-  state.rows.forEach(r=>addRow(r));
+  (state.rows||[]).forEach(r=>addRow(r));
   if(!elements.timeSheetBody.querySelector("tr"))addRow();
   calculateTotals();
 }
@@ -97,33 +97,20 @@ function showSaved(){elements.saveStatus.textContent="Salvo ✓";elements.saveSt
 function scheduleSave(){showSaving();if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveAll(),600);}
 
 function collectState(){
-  const rows=[];
-  document.querySelectorAll("#timeSheetBody tr").forEach(r=>{
-    const i=r.querySelectorAll("input");
-    rows.push({
-      date:i[0].value,
-      entry1:i[1].value,
-      exit1:i[2].value,
-      entry2:i[3].value,
-      exit2:i[4].value,
-      tipo:r.querySelector(".tipo").value,
-      jornada:r.querySelector(".jornada").value
-    });
-  });
-  return{
+  return {
     version:STATE_VERSION,
     settings:{
       hourlyRate:elements.hourlyRate.value,
       overtimeRate:elements.overtimeRate.value,
       holidayRate:elements.holidayRate.value
     },
-    rows
+    rows:AppState.collectRowsFromTable(elements.timeSheetBody)
   };
 }
 
 async function saveAll(){
   const state=collectState();
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+  AppState.saveToStorage(STORAGE_KEY,state);
 
   if(fileHandle){
     try{
@@ -186,27 +173,18 @@ async function importarArquivoJSON(){
 
 /* LOAD */
 function loadState(){
-  const raw=localStorage.getItem(STORAGE_KEY);
-  if(!raw)return;
-
-  let parsedState=null;
-  try{
-    parsedState=JSON.parse(raw);
-  }catch(err){
-    UiUtils.logEvent("warn","Estado salvo inválido. Limpando cache local.",err?.message);
+  const result=AppState.loadFromStorage(STORAGE_KEY,StateSchema.migrateState);
+  if(!result.ok){
+    UiUtils.logEvent("warn","Falha ao carregar estado",result.error);
     localStorage.removeItem(STORAGE_KEY);
+    showFeedback(result.error+" Recriando estado local.");
+    applyStateToUi(AppState.createDefaultState());
     return;
   }
 
-  const state=StateSchema.migrateState(parsedState);
-  if(!state){
-    UiUtils.logEvent("warn","Versão de estado não suportada. Limpando cache local.");
-    localStorage.removeItem(STORAGE_KEY);
-    return;
-  }
-
-  applyStateToUi(state);
+  applyStateToUi(result.state);
 }
+
 
 /* CONFIG */
 function toggleConfig(){
@@ -540,6 +518,8 @@ function deleteRow(btn){
 function applyAppUpdate(){
   if(navigator.serviceWorker && navigator.serviceWorker.controller){
     navigator.serviceWorker.controller.postMessage({type:"SKIP_WAITING"});
+    showFeedback("Atualizando aplicação...");
+    return;
   }
   window.location.reload();
 }
@@ -571,5 +551,15 @@ document.addEventListener("DOMContentLoaded",()=>{
     }).catch(err=>UiUtils.logEvent("warn","Falha ao registrar service worker",err?.message));
 
     navigator.serviceWorker.addEventListener("controllerchange",()=>window.location.reload());
+
+    navigator.serviceWorker.addEventListener("message",(event)=>{
+      if(event.data && event.data.type==="SW_ACTIVATED"){
+        UiUtils.logEvent("info","Service worker ativado",event.data.version);
+      }
+    });
+
+    setInterval(()=>{
+      navigator.serviceWorker.getRegistration().then(reg=>reg && reg.update()).catch(()=>{});
+    }, 5*60*1000);
   }
 });
