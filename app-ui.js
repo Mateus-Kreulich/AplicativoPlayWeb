@@ -380,7 +380,6 @@ function initAudioContext(){
   try{
     audioCtx=new Ctx();
   }catch(err){
-    soundEnabled=false;
     UiUtils.logEvent("warn","Não foi possível iniciar contexto de áudio",err?.message);
   }
 }
@@ -393,9 +392,15 @@ async function tocarSom(){
   if(audioCtx.state==="suspended"){
     try{
       await audioCtx.resume();
-    }catch{
-      // continua para tentar reproduzir
+    }catch(err){
+      UiUtils.logEvent("warn","AudioContext bloqueado para reprodução",err?.message);
+      return;
     }
+  }
+
+  if(audioCtx.state!=="running"){
+    UiUtils.logEvent("warn","AudioContext não está em estado running",audioCtx.state);
+    return;
   }
 
   try{
@@ -403,18 +408,19 @@ async function tocarSom(){
     const gain=audioCtx.createGain();
 
     oscillator.type="sine";
-    oscillator.frequency.setValueAtTime(1046,audioCtx.currentTime);
+    oscillator.frequency.setValueAtTime(1200,audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(900,audioCtx.currentTime+0.25);
+
     gain.gain.setValueAtTime(0.0001,audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18,audioCtx.currentTime+0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.22);
+    gain.gain.exponentialRampToValueAtTime(0.35,audioCtx.currentTime+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.3);
 
     oscillator.connect(gain);
     gain.connect(audioCtx.destination);
 
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime+0.24);
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime+0.32);
   }catch(err){
-    soundEnabled=false;
     UiUtils.logEvent("warn","Falha ao reproduzir notificação sonora",err?.message);
   }
 }
@@ -539,6 +545,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   window.addEventListener("pointerdown",initAudioContext,{once:true});
   window.addEventListener("touchstart",initAudioContext,{once:true});
   window.addEventListener("click",initAudioContext,{once:true});
+  window.addEventListener("mousedown",initAudioContext,{once:true});
   window.addEventListener("keydown",initAudioContext,{once:true});
   loadState();
   if(!elements.timeSheetBody.querySelector("tr"))addRow();
