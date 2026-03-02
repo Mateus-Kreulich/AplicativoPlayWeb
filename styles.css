@@ -235,6 +235,11 @@ input,select{
     top:72px;
   }
 
+  .file-sync-status{
+    right:10px;
+    top:90px;
+  }
+
   #updateBanner{
     left:10px !important;
     right:10px;
@@ -256,3 +261,14 @@ input,select{
     height:30px;
   }
 }
+
+
+.file-sync-status{
+  position:fixed;
+  top:98px;
+  right:20px;
+  font-size:11px;
+  color:var(--neon-cyan);
+}
+.file-sync-status.ok{color:var(--neon-green)}
+.file-sync-status.error{color:#ff6b6b}

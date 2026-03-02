@@ -48,11 +48,16 @@ let fileHandle=null;
 const FILE_HANDLE_DB_NAME="dragonpoint-file-handle-db";
 const FILE_HANDLE_STORE_NAME="handles";
 const FILE_HANDLE_KEY="linked-json-handle";
+const AUTO_HEARTBEAT_INTERVAL_MS=60*1000;
 let audioCtx=null;
 let soundEnabled=true;
+let saveLock=Promise.resolve();
+let lastSavedStateHash="";
+let autosaveHeartbeatId=null;
 
 const elements={
   saveStatus:document.getElementById("saveStatus"),
+  fileSyncStatus:document.getElementById("fileSyncStatus"),
   timeSheetBody:document.getElementById("timeSheetBody"),
   hourlyRate:document.getElementById("hourlyRate"),
   overtimeRate:document.getElementById("overtimeRate"),
@@ -72,6 +77,26 @@ const elements={
 function showFeedback(message){
   elements.appFeedback.textContent=message;
   setTimeout(()=>{ if(elements.appFeedback.textContent===message) elements.appFeedback.textContent=""; },3000);
+}
+
+function formatTimeLabel(date){
+  return date.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+
+function updateFileSyncStatus(status,date){
+  if(!elements.fileSyncStatus)return;
+  if(status==="ok" && date){
+    elements.fileSyncStatus.textContent=`JSON sincronizado: ${formatTimeLabel(date)}`;
+    elements.fileSyncStatus.className="file-sync-status ok";
+    return;
+  }
+  if(status==="error"){
+    elements.fileSyncStatus.textContent="JSON não sincronizado";
+    elements.fileSyncStatus.className="file-sync-status error";
+    return;
+  }
+  elements.fileSyncStatus.textContent="JSON não vinculado";
+  elements.fileSyncStatus.className="file-sync-status";
 }
 
 
@@ -184,14 +209,21 @@ async function importStateFromLinkedFile(handle){
 
 async function restoreLinkedFileOnStartup(){
   const restored=await loadLinkedFileHandle();
-  if(!restored)return;
+  if(!restored){
+    updateFileSyncStatus("idle");
+    return;
+  }
 
   fileHandle=restored;
   const hasPermission=await ensureFileHandlePermission(fileHandle,{interactive:false});
-  if(!hasPermission)return;
+  if(!hasPermission){
+    updateFileSyncStatus("error");
+    return;
+  }
 
   const imported=await importStateFromLinkedFile(fileHandle);
   if(imported){
+    updateFileSyncStatus("ok",new Date());
     scheduleSave();
     showFeedback("Arquivo JSON vinculado carregado automaticamente.");
   }
@@ -222,11 +254,23 @@ function showSaving(){elements.saveStatus.textContent="Salvando...";elements.sav
 function showSaved(){elements.saveStatus.textContent="Salvo ✓";elements.saveStatus.className="autosave saved";setTimeout(()=>{elements.saveStatus.textContent="Pronto";elements.saveStatus.className="autosave";},1500);}
 function scheduleSave(){showSaving();if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveAll(),350);}
 
+function stateHash(state){
+  return JSON.stringify(state);
+}
+
+function queueSave(options={}){
+  saveLock=saveLock
+    .catch(()=>{})
+    .then(()=>saveAllInternal(options));
+  return saveLock;
+}
+
 function flushPendingSave(){
-  if(!saveTimer)return;
-  clearTimeout(saveTimer);
-  saveTimer=null;
-  saveAll({silent:true}).catch(()=>{});
+  if(saveTimer){
+    clearTimeout(saveTimer);
+    saveTimer=null;
+  }
+  queueSave({silent:true,force:true}).catch(()=>{});
 }
 
 function collectState(){
@@ -241,9 +285,41 @@ function collectState(){
   };
 }
 
-async function saveAll(options={}){
-  const {silent=false}=options;
+async function writeStateToLinkedFile(state,{maxAttempts=3}={}){
+  if(!fileHandle)return { ok:true, skipped:true };
+  let attempt=0;
+  while(attempt<maxAttempts){
+    attempt+=1;
+    try{
+      const writable=await fileHandle.createWritable();
+      await writable.write(JSON.stringify(state,null,2));
+      await writable.close();
+      updateFileSyncStatus("ok",new Date());
+      return { ok:true };
+    }catch(err){
+      UiUtils.logEvent("warn","Falha ao salvar no arquivo vinculado.",{attempt,message:err?.message});
+      if(attempt>=maxAttempts){
+        fileHandle=null;
+        clearLinkedFileHandle();
+        updateFileSyncStatus("error");
+        return { ok:false };
+      }
+      const backoff=250*attempt;
+      await new Promise(resolve=>setTimeout(resolve,backoff));
+    }
+  }
+  return { ok:false };
+}
+
+async function saveAllInternal(options={}){
+  const {silent=false,force=false}=options;
   const state=collectState();
+  const currentHash=stateHash(state);
+  if(!force && currentHash===lastSavedStateHash){
+    if(!silent)showSaved();
+    return;
+  }
+
   const persisted=AppState.saveToStorage(STORAGE_KEY,state);
   if(!persisted.ok){
     UiUtils.logEvent("error","Falha ao salvar no armazenamento local",persisted.error);
@@ -251,20 +327,17 @@ async function saveAll(options={}){
     return;
   }
 
-  if(fileHandle){
-    try{
-      const writable=await fileHandle.createWritable();
-      await writable.write(JSON.stringify(state,null,2));
-      await writable.close();
-    }catch(err){
-      UiUtils.logEvent("warn","Falha ao salvar no arquivo vinculado.",err?.message);
-      fileHandle=null;
-      clearLinkedFileHandle();
-      showFeedback("Falha ao salvar no arquivo vinculado. Vincule novamente.");
-    }
+  const fileWriteResult=await writeStateToLinkedFile(state);
+  if(!fileWriteResult.ok){
+    showFeedback("Falha ao salvar no arquivo vinculado. Vincule novamente.");
   }
 
+  lastSavedStateHash=currentHash;
   if(!silent)showSaved();
+}
+
+function saveAll(options={}){
+  return queueSave(options);
 }
 
 /* FILE SYSTEM */
@@ -284,11 +357,16 @@ async function selecionarArquivo(){
     if(!granted){
       showFeedback("Permissão negada para o arquivo vinculado.");
       fileHandle=null;
+      updateFileSyncStatus("error");
       return;
     }
 
     await saveLinkedFileHandle(fileHandle);
-    await importStateFromLinkedFile(fileHandle);
+    const imported=await importStateFromLinkedFile(fileHandle);
+    if(imported){
+      lastSavedStateHash="";
+    }
+    updateFileSyncStatus("ok",new Date());
     scheduleSave();
     showFeedback("Arquivo vinculado com sucesso. Será reaberto automaticamente.");
   }catch(err){
@@ -480,16 +558,25 @@ function registrarPonto(){
   const inputs=row.querySelectorAll("input[type=time]");
   const hora=new Date().toTimeString().slice(0,5);
 
+  let filledIndex=-1;
   for(let i=0;i<inputs.length;i++){
     if(!inputs[i].value){
       inputs[i].value=hora;
       atualizarStatus(i+1);
+      filledIndex=i;
       break;
     }
   }
 
   calculateRow(row);
   scheduleSave();
+
+  const jornada=row.querySelector(".jornada")?.value || "8";
+  const completed8h=(jornada==="8" && filledIndex===3);
+  const completed4h=(jornada==="4" && filledIndex===1);
+  if(completed8h || completed4h){
+    queueSave({force:true}).catch(()=>{});
+  }
 
   const botao=document.querySelector(".big-button");
   botao.classList.add("pulse","flash-success");
@@ -709,6 +796,9 @@ document.addEventListener("DOMContentLoaded",()=>{
   bindClick("btnUpdateApp",applyAppUpdate);
   window.addEventListener("beforeunload",flushPendingSave);
   document.addEventListener("visibilitychange",()=>{ if(document.hidden)flushPendingSave(); });
+  autosaveHeartbeatId=setInterval(()=>{
+    queueSave({silent:true}).catch(()=>{});
+  },AUTO_HEARTBEAT_INTERVAL_MS);
   loadState();
   restoreLinkedFileOnStartup().catch(()=>{});
   if(!elements.timeSheetBody.querySelector("tr"))addRow();
