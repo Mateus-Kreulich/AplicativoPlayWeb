@@ -185,7 +185,7 @@ function loadState(){
   if(!result.ok){
     UiUtils.logEvent("warn","Falha ao carregar estado",result.error);
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(`${STORAGE_KEY}::backup`);
+    localStorage.removeItem(AppState.getBackupKey(STORAGE_KEY));
     showFeedback(result.error+" Recriando estado local.");
     applyStateToUi(AppState.createDefaultState());
     return;

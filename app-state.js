@@ -88,5 +88,5 @@
     localStorage.setItem(backupKey, payload);
   }
 
-  return { createDefaultState, collectRowsFromTable, loadFromStorage, saveToStorage };
+  return { createDefaultState, collectRowsFromTable, loadFromStorage, saveToStorage, getBackupKey };
 });

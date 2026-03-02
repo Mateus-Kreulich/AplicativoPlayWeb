@@ -55,3 +55,8 @@ test('loadFromStorage repara backup ausente quando estado principal está válid
   assert.equal(migrated.source, 'storage');
   assert.equal(storage.getItem('k::backup'), raw);
 });
+
+
+test('getBackupKey retorna sufixo padrão de backup', () => {
+  assert.equal(AppState.getBackupKey('controle'), 'controle::backup');
+});
