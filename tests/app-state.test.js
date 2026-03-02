@@ -41,3 +41,17 @@ test('loadFromStorage recupera backup quando estado principal está inválido', 
   assert.equal(migrated.source, 'backup');
   assert.equal(migrated.state.restored, true);
 });
+
+test('loadFromStorage repara backup ausente quando estado principal está válido', () => {
+  const storage = createStorage();
+  global.localStorage = storage;
+
+  const raw = JSON.stringify({ version: 3, settings: { hourlyRate: '10' }, rows: [] });
+  storage.setItem('k', raw);
+
+  const migrated = AppState.loadFromStorage('k', (state) => state);
+
+  assert.equal(migrated.ok, true);
+  assert.equal(migrated.source, 'storage');
+  assert.equal(storage.getItem('k::backup'), raw);
+});

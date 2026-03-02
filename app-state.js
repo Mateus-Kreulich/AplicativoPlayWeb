@@ -56,6 +56,11 @@
 
     const migrated = parseAndMigrate(raw, migrateFn);
     if (migrated) {
+      const backupRaw = localStorage.getItem(backupKey);
+      const backupMigrated = backupRaw ? parseAndMigrate(backupRaw, migrateFn) : null;
+      if (!backupMigrated) {
+        localStorage.setItem(backupKey, raw);
+      }
       return { ok: true, state: migrated, source: "storage" };
     }
 
