@@ -45,6 +45,8 @@ const STATE_VERSION=StateSchema.CURRENT_VERSION;
 const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 let saveTimer=null;
 let fileHandle=null;
+let audioCtx=null;
+let soundEnabled=true;
 
 const elements={
   saveStatus:document.getElementById("saveStatus"),
@@ -367,9 +369,50 @@ function atualizarStatus(pos){
   else elements.nextStatus.textContent="Dia completo ✓";
 }
 
+
+function initAudioContext(){
+  if(audioCtx || !soundEnabled)return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if(!Ctx){
+    soundEnabled=false;
+    return;
+  }
+  try{
+    audioCtx=new Ctx();
+  }catch(err){
+    soundEnabled=false;
+    UiUtils.logEvent("warn","Não foi possível iniciar contexto de áudio",err?.message);
+  }
+}
+
 function tocarSom(){
-  const audio=new Audio("data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAA");
-  audio.play().catch(()=>{});
+  if(!soundEnabled)return;
+  initAudioContext();
+  if(!audioCtx)return;
+
+  if(audioCtx.state==="suspended"){
+    audioCtx.resume().catch(()=>{});
+  }
+
+  try{
+    const oscillator=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+
+    oscillator.type="triangle";
+    oscillator.frequency.setValueAtTime(880,audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.0001,audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08,audioCtx.currentTime+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.14);
+
+    oscillator.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime+0.15);
+  }catch(err){
+    soundEnabled=false;
+    UiUtils.logEvent("warn","Falha ao reproduzir notificação sonora",err?.message);
+  }
 }
 
 /* CÁLCULO */
@@ -489,6 +532,8 @@ function applyAppUpdate(){
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
+  window.addEventListener("pointerdown",initAudioContext,{once:true});
+  window.addEventListener("keydown",initAudioContext,{once:true});
   loadState();
   if(!elements.timeSheetBody.querySelector("tr"))addRow();
 
