@@ -357,7 +357,7 @@ function registrarPonto(){
   setTimeout(()=>botao.classList.remove("pulse","flash-success"),400);
 
   if(navigator.vibrate){navigator.vibrate([100,50,100]);}
-  tocarSom();
+  tocarSom().catch(()=>{});
 
   elements.confirmacaoVisual.classList.add("show");
   setTimeout(()=>elements.confirmacaoVisual.classList.remove("show"),1500);
@@ -385,30 +385,34 @@ function initAudioContext(){
   }
 }
 
-function tocarSom(){
+async function tocarSom(){
   if(!soundEnabled)return;
   initAudioContext();
   if(!audioCtx)return;
 
   if(audioCtx.state==="suspended"){
-    audioCtx.resume().catch(()=>{});
+    try{
+      await audioCtx.resume();
+    }catch{
+      // continua para tentar reproduzir
+    }
   }
 
   try{
     const oscillator=audioCtx.createOscillator();
     const gain=audioCtx.createGain();
 
-    oscillator.type="triangle";
-    oscillator.frequency.setValueAtTime(880,audioCtx.currentTime);
+    oscillator.type="sine";
+    oscillator.frequency.setValueAtTime(1046,audioCtx.currentTime);
     gain.gain.setValueAtTime(0.0001,audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.08,audioCtx.currentTime+0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.14);
+    gain.gain.exponentialRampToValueAtTime(0.18,audioCtx.currentTime+0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.22);
 
     oscillator.connect(gain);
     gain.connect(audioCtx.destination);
 
     oscillator.start();
-    oscillator.stop(audioCtx.currentTime+0.15);
+    oscillator.stop(audioCtx.currentTime+0.24);
   }catch(err){
     soundEnabled=false;
     UiUtils.logEvent("warn","Falha ao reproduzir notificação sonora",err?.message);
@@ -533,6 +537,8 @@ function applyAppUpdate(){
 
 document.addEventListener("DOMContentLoaded",()=>{
   window.addEventListener("pointerdown",initAudioContext,{once:true});
+  window.addEventListener("touchstart",initAudioContext,{once:true});
+  window.addEventListener("click",initAudioContext,{once:true});
   window.addEventListener("keydown",initAudioContext,{once:true});
   loadState();
   if(!elements.timeSheetBody.querySelector("tr"))addRow();
