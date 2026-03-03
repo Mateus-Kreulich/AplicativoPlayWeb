@@ -68,6 +68,16 @@ DragonPoint
 <button id="btnAddRow" type="button" aria-label="Adicionar uma nova linha de dia">Adicionar Dia</button>
 </div>
 
+<div class="json-status-panel" aria-live="polite">
+  <strong>Status do JSON</strong>
+  <div class="json-status-grid">
+    <span>Vínculo:</span><span id="jsonLinkState">Não vinculado</span>
+    <span>LocalStorage:</span><span id="jsonLocalState">Aguardando</span>
+    <span>Arquivo vinculado:</span><span id="jsonFileState">Aguardando</span>
+    <span>Último save:</span><span id="jsonLastSaved">--:--:--</span>
+  </div>
+</div>
+
 <div class="config-panel" id="configPanel">
 <label for="hourlyRate">Valor Hora Normal:</label>
 <input id="hourlyRate" type="number" step="0.01" value="12.50">

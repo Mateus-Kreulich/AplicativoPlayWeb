@@ -64,7 +64,11 @@ const elements={
   nextStatus:document.getElementById("nextStatus"),
   confirmacaoVisual:document.getElementById("confirmacaoVisual"),
   appFeedback:document.getElementById("appFeedback"),
-  updateBanner:document.getElementById("updateBanner")
+  updateBanner:document.getElementById("updateBanner"),
+  jsonLinkState:document.getElementById("jsonLinkState"),
+  jsonLocalState:document.getElementById("jsonLocalState"),
+  jsonFileState:document.getElementById("jsonFileState"),
+  jsonLastSaved:document.getElementById("jsonLastSaved")
 };
 
 
@@ -74,7 +78,39 @@ function showFeedback(message){
   setTimeout(()=>{ if(elements.appFeedback.textContent===message) elements.appFeedback.textContent=""; },3000);
 }
 
+const jsonStatus={
+  linked:false,
+  local:"Aguardando",
+  file:"Aguardando",
+  lastSaved:"--:--:--"
+};
 
+function updateStatusLabel(element,value,cssClass){
+  if(!element)return;
+  element.textContent=value;
+  element.classList.remove("json-status-ok","json-status-warn","json-status-error");
+  if(cssClass)element.classList.add(cssClass);
+}
+
+function getStatusClass(text){
+  if(!text)return "json-status-warn";
+  if(text.includes("Erro"))return "json-status-error";
+  if(text.includes("Aguardando") || text.includes("Não vinculado") || text.includes("Pronto"))return "json-status-warn";
+  return "json-status-ok";
+}
+
+function renderJsonStatus(){
+  updateStatusLabel(elements.jsonLinkState,jsonStatus.linked?"Vinculado":"Não vinculado",jsonStatus.linked?"json-status-ok":"json-status-warn");
+  updateStatusLabel(elements.jsonLocalState,jsonStatus.local,getStatusClass(jsonStatus.local));
+  updateStatusLabel(elements.jsonFileState,jsonStatus.file,getStatusClass(jsonStatus.file));
+  updateStatusLabel(elements.jsonLastSaved,jsonStatus.lastSaved,jsonStatus.lastSaved==="--:--:--"?"json-status-warn":"json-status-ok");
+}
+
+function setLastSavedNow(){
+  jsonStatus.lastSaved=new Date().toLocaleTimeString("pt-BR");
+}
+
+renderJsonStatus();
 
 function supportsPersistentFileHandle(){
   return !!(window.indexedDB && window.showSaveFilePicker);
@@ -184,11 +220,23 @@ async function importStateFromLinkedFile(handle){
 
 async function restoreLinkedFileOnStartup(){
   const restored=await loadLinkedFileHandle();
-  if(!restored)return;
+  if(!restored){
+    jsonStatus.linked=false;
+    jsonStatus.file="Não vinculado";
+    renderJsonStatus();
+    return;
+  }
 
   fileHandle=restored;
+  jsonStatus.linked=true;
+  jsonStatus.file="Vinculado (aguardando save)";
+  renderJsonStatus();
   const hasPermission=await ensureFileHandlePermission(fileHandle,{interactive:false});
-  if(!hasPermission)return;
+  if(!hasPermission){
+    jsonStatus.file="Vinculado sem permissão";
+    renderJsonStatus();
+    return;
+  }
 
   const imported=await importStateFromLinkedFile(fileHandle);
   if(imported){
@@ -218,7 +266,12 @@ function showPage(id){
 }
 
 /* AUTOSAVE */
-function showSaving(){elements.saveStatus.textContent="Salvando...";elements.saveStatus.className="autosave saving";}
+function showSaving(){
+  elements.saveStatus.textContent="Salvando...";
+  elements.saveStatus.className="autosave saving";
+  jsonStatus.local="Salvando...";
+  renderJsonStatus();
+}
 function showSaved(){elements.saveStatus.textContent="Salvo ✓";elements.saveStatus.className="autosave saved";setTimeout(()=>{elements.saveStatus.textContent="Pronto";elements.saveStatus.className="autosave";},1500);}
 function scheduleSave(){showSaving();if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveAll(),350);}
 
@@ -244,26 +297,39 @@ function collectState(){
 async function saveAll(options={}){
   const {silent=false}=options;
   const state=collectState();
+  const preparedState=AppState.prepareStateForStorage(state);
   const persisted=AppState.saveToStorage(STORAGE_KEY,state);
   if(!persisted.ok){
     UiUtils.logEvent("error","Falha ao salvar no armazenamento local",persisted.error);
+    jsonStatus.local="Erro ao salvar";
+    renderJsonStatus();
     showFeedback("Sem espaço para salvar localmente. Exporte/limpe dados e tente novamente.");
     return;
   }
 
+  jsonStatus.local="Salvo";
+  setLastSavedNow();
+
   if(fileHandle){
     try{
       const writable=await fileHandle.createWritable();
-      await writable.write(JSON.stringify(state,null,2));
+      await writable.write(JSON.stringify(preparedState,null,2));
       await writable.close();
+      jsonStatus.linked=true;
+      jsonStatus.file="Salvo no arquivo";
     }catch(err){
       UiUtils.logEvent("warn","Falha ao salvar no arquivo vinculado.",err?.message);
       fileHandle=null;
       clearLinkedFileHandle();
+      jsonStatus.linked=false;
+      jsonStatus.file="Erro no arquivo";
       showFeedback("Falha ao salvar no arquivo vinculado. Vincule novamente.");
     }
+  }else{
+    jsonStatus.file="Não vinculado";
   }
 
+  renderJsonStatus();
   if(!silent)showSaved();
 }
 
@@ -284,8 +350,15 @@ async function selecionarArquivo(){
     if(!granted){
       showFeedback("Permissão negada para o arquivo vinculado.");
       fileHandle=null;
+      jsonStatus.linked=false;
+      jsonStatus.file="Não vinculado";
+      renderJsonStatus();
       return;
     }
+
+    jsonStatus.linked=true;
+    jsonStatus.file="Vinculado (aguardando save)";
+    renderJsonStatus();
 
     await saveLinkedFileHandle(fileHandle);
     await importStateFromLinkedFile(fileHandle);
@@ -294,6 +367,8 @@ async function selecionarArquivo(){
   }catch(err){
     if(err && err.name!=="AbortError"){
       showFeedback("Não foi possível vincular o arquivo.");
+      jsonStatus.file="Erro ao vincular";
+      renderJsonStatus();
     }
   }
 }
@@ -710,6 +785,9 @@ document.addEventListener("DOMContentLoaded",()=>{
   window.addEventListener("beforeunload",flushPendingSave);
   document.addEventListener("visibilitychange",()=>{ if(document.hidden)flushPendingSave(); });
   loadState();
+  jsonStatus.local="Pronto";
+  jsonStatus.file="Não vinculado";
+  renderJsonStatus();
   restoreLinkedFileOnStartup().catch(()=>{});
   if(!elements.timeSheetBody.querySelector("tr"))addRow();
 

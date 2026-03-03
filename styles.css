@@ -256,3 +256,31 @@ input,select{
     height:30px;
   }
 }
+
+
+.json-status-panel{
+  margin:10px 0 14px;
+  padding:12px;
+  border:1px solid rgba(0,234,255,0.4);
+  border-radius:10px;
+  background:rgba(0,0,0,0.25);
+}
+
+.json-status-grid{
+  margin-top:8px;
+  display:grid;
+  grid-template-columns:minmax(130px,170px) 1fr;
+  gap:6px 12px;
+  font-size:12px;
+}
+
+#jsonLinkState,
+#jsonLocalState,
+#jsonFileState,
+#jsonLastSaved{
+  color:var(--neon-cyan);
+}
+
+.json-status-ok{ color:var(--neon-green) !important; }
+.json-status-warn{ color:var(--warn) !important; }
+.json-status-error{ color:#ff6b6b !important; }
