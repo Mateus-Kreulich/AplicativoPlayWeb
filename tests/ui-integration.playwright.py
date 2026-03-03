@@ -53,6 +53,8 @@ def run(base_url: str = "http://127.0.0.1:4173") -> None:
             """
         )
 
+        page.click('#btnToggleConfig')
+        page.locator('#hourlyRate').wait_for(state='visible')
         page.fill('#hourlyRate', '44.44')
         page.wait_for_timeout(500)
         page.evaluate("window.__DP_TEST__.queueSave({force:true})")
