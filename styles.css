@@ -272,4 +272,3 @@ input,select{
 }
 .file-sync-status.ok{color:var(--neon-green)}
 .file-sync-status.error{color:#ff6b6b}
-.file-sync-status.waiting{color:var(--warn)}
