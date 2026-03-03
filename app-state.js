@@ -8,6 +8,67 @@
   const BACKUP_SUFFIX = "::backup";
   const CURRENT_STATE_VERSION = 3;
 
+  function normalizeText(value, fallback = "") {
+    if (typeof value !== "string") return fallback;
+    const normalized = value.trim();
+    return normalized || fallback;
+  }
+
+  function normalizeRate(value, fallback) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value.toFixed(2);
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().replace(",", ".");
+      if (!normalized) return fallback;
+      const parsed = Number(normalized);
+      if (Number.isFinite(parsed)) {
+        return parsed.toFixed(2);
+      }
+      return normalized;
+    }
+
+    return fallback;
+  }
+
+  function normalizeRow(row) {
+    return {
+      date: normalizeText(row?.date),
+      entry1: normalizeText(row?.entry1),
+      exit1: normalizeText(row?.exit1),
+      entry2: normalizeText(row?.entry2),
+      exit2: normalizeText(row?.exit2),
+      tipo: normalizeText(row?.tipo, "normal"),
+      jornada: normalizeText(row?.jornada, "8")
+    };
+  }
+
+  function isPersistableRow(row) {
+    return row.date || row.entry1 || row.exit1 || row.entry2 || row.exit2;
+  }
+
+  function prepareStateForStorage(state) {
+    const incoming = state && typeof state === "object" ? state : {};
+    const meta = incoming.meta && typeof incoming.meta === "object" ? incoming.meta : {};
+
+    return {
+      version: Number.isInteger(incoming.version) ? incoming.version : CURRENT_STATE_VERSION,
+      settings: {
+        hourlyRate: normalizeRate(incoming.settings?.hourlyRate, "12.50"),
+        overtimeRate: normalizeRate(incoming.settings?.overtimeRate, "18.75"),
+        holidayRate: normalizeRate(incoming.settings?.holidayRate, "25.00")
+      },
+      rows: (Array.isArray(incoming.rows) ? incoming.rows : [])
+        .map(normalizeRow)
+        .filter(isPersistableRow),
+      meta: {
+        ...meta,
+        lastSavedAt: new Date().toISOString()
+      }
+    };
+  }
+
   function createDefaultState() {
     return {
       version: CURRENT_STATE_VERSION,
@@ -84,7 +145,7 @@
   }
 
   function saveToStorage(storageKey, state) {
-    const payload = JSON.stringify(state);
+    const payload = JSON.stringify(prepareStateForStorage(state));
     const backupKey = getBackupKey(storageKey);
 
     try {
@@ -96,5 +157,12 @@
     }
   }
 
-  return { createDefaultState, collectRowsFromTable, loadFromStorage, saveToStorage, getBackupKey };
+  return {
+    createDefaultState,
+    collectRowsFromTable,
+    loadFromStorage,
+    saveToStorage,
+    getBackupKey,
+    prepareStateForStorage
+  };
 });
