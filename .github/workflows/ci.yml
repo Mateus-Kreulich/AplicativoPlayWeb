@@ -24,7 +24,8 @@ jobs:
           python -m playwright install chromium
       - name: Run smoke integration
         run: |
+          set -euo pipefail
           python -m http.server 4173 >/tmp/http.log 2>&1 &
           SERVER_PID=$!
-          python tests/ui-integration.playwright.py
-          kill $SERVER_PID
+          trap 'kill ${SERVER_PID} >/dev/null 2>&1 || true' EXIT
+          python tests/ui-integration.playwright.py || (cat /tmp/http.log && exit 1)
