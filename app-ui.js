@@ -57,6 +57,7 @@ let autosaveHeartbeatId=null;
 let simulatedFileWriteFailures=0;
 let fileWriteAttempts=0;
 let forcedCheckpointSaves=0;
+let linkedFileName="";
 
 const elements={
   saveStatus:document.getElementById("saveStatus"),
@@ -88,18 +89,24 @@ function formatTimeLabel(date){
 
 function updateFileSyncStatus(status,date){
   if(!elements.fileSyncStatus)return;
+  const fileLabel=linkedFileName?` (${linkedFileName})`:"";
   if(status==="ok" && date){
-    elements.fileSyncStatus.textContent=`JSON sincronizado: ${formatTimeLabel(date)}`;
+    elements.fileSyncStatus.textContent=`JSON sincronizado${fileLabel}: ${formatTimeLabel(date)}`;
     elements.fileSyncStatus.className="file-sync-status ok";
     return;
   }
+  if(status==="linked"){
+    elements.fileSyncStatus.textContent=`JSON vinculado${fileLabel}`;
+    elements.fileSyncStatus.className="file-sync-status";
+    return;
+  }
   if(status==="waiting_permission"){
-    elements.fileSyncStatus.textContent="JSON vinculado, aguardando permissão";
+    elements.fileSyncStatus.textContent=`JSON vinculado${fileLabel}, aguardando permissão`;
     elements.fileSyncStatus.className="file-sync-status waiting";
     return;
   }
   if(status==="error"){
-    elements.fileSyncStatus.textContent="JSON não sincronizado";
+    elements.fileSyncStatus.textContent=`JSON não sincronizado${fileLabel}`;
     elements.fileSyncStatus.className="file-sync-status error";
     return;
   }
@@ -119,6 +126,8 @@ function getWriteDiagnostics(){
 
 function setLinkedFileHandleForTests(handle){
   fileHandle=handle;
+  linkedFileName=handle?.name || "arquivo_teste.json";
+  updateFileSyncStatus("linked");
 }
 
 function supportsPersistentFileHandle(){
@@ -195,6 +204,7 @@ async function clearLinkedFileHandle(){
 
 async function unlinkLinkedFile(){
   fileHandle=null;
+  linkedFileName="";
   await clearLinkedFileHandle();
   updateFileSyncStatus("idle");
   showFeedback("Arquivo JSON desvinculado.");
@@ -207,6 +217,8 @@ async function reauthorizeLinkedFile(){
   }
 
   if(!fileHandle){
+    linkedFileName="";
+    updateFileSyncStatus("idle");
     showFeedback("Nenhum arquivo vinculado para reautorizar.");
     return;
   }
@@ -268,6 +280,8 @@ async function restoreLinkedFileOnStartup(){
   }
 
   fileHandle=restored;
+  linkedFileName=fileHandle?.name || "arquivo_vinculado.json";
+  updateFileSyncStatus("linked");
   const hasPermission=await ensureFileHandlePermission(fileHandle,{interactive:false});
   if(!hasPermission){
     updateFileSyncStatus("waiting_permission");
@@ -279,6 +293,8 @@ async function restoreLinkedFileOnStartup(){
     updateFileSyncStatus("ok",new Date());
     scheduleSave();
     showFeedback("Arquivo JSON vinculado carregado automaticamente.");
+  }else{
+    updateFileSyncStatus("linked");
   }
 }
 
@@ -358,6 +374,7 @@ async function writeStateToLinkedFile(state,{maxAttempts=3}={}){
       UiUtils.logEvent("warn","Falha ao salvar no arquivo vinculado.",{attempt,message:err?.message});
       if(attempt>=maxAttempts){
         fileHandle=null;
+        linkedFileName="";
         clearLinkedFileHandle();
         updateFileSyncStatus("error");
         return { ok:false };
@@ -411,10 +428,12 @@ async function selecionarArquivo(){
       types:[{description:"JSON",accept:{"application/json":[".json"]}}]
     });
 
+    linkedFileName=fileHandle?.name || "registro_horas.json";
+    updateFileSyncStatus("linked");
+
     const granted=await ensureFileHandlePermission(fileHandle,{interactive:true});
     if(!granted){
       showFeedback("Permissão negada para o arquivo vinculado.");
-      fileHandle=null;
       updateFileSyncStatus("waiting_permission");
       return;
     }
@@ -855,6 +874,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   bindClick("btnReport",gerarPDF);
   bindClick("btnAddRow",()=>addRow());
   bindClick("btnUpdateApp",applyAppUpdate);
+  updateFileSyncStatus("idle");
   if(typeof window!=="undefined"){
     window.__DP_TEST__={
       setSimulatedFileWriteFailures,
