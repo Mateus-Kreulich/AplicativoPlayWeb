@@ -4,196 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DragonPoint Ultra Premium</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#7c5cff">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
+<link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="./icon-512.png">
+<script src="./state-schema.js"></script>
+<script src="./app-state.js"></script>
+<script src="./app-logic.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&display=swap" rel="stylesheet">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
-<style>
-:root{
-  --bg:#050505;
-  --panel:#0d0d12;
-  --neon-green:#00ff9f;
-  --neon-cyan:#00eaff;
-  --text:#e0ffff;
-  --warn:#ffcc00;
-}
-*{box-sizing:border-box}
-
-body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family:'Orbitron',sans-serif;
-  overflow-x:hidden;
-}
-
-/* LOADING SCREEN */
-#loadingScreen{
-  position:fixed;
-  inset:0;
-  background:#000;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  z-index:9999;
-  color:var(--neon-green);
-  letter-spacing:3px;
-}
-.loading-bar{
-  width:300px;
-  height:6px;
-  background:#111;
-  margin-top:20px;
-  overflow:hidden;
-}
-.loading-bar span{
-  display:block;
-  height:100%;
-  width:0%;
-  background:linear-gradient(90deg,var(--neon-green),var(--neon-cyan));
-  animation:loading 2.5s forwards;
-}
-@keyframes loading{to{width:100%}}
-
-/* PARTICLES */
-#particles{
-  position:fixed;
-  inset:0;
-  z-index:0;
-}
-
-/* HUD */
-.hud{
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  height:70px;
-  background:rgba(0,0,0,0.6);
-  backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--neon-cyan);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 25px;
-  z-index:10;
-  box-shadow:0 0 20px var(--neon-cyan);
-}
-
-.logo{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  color:var(--neon-green);
-  font-weight:800;
-}
-
-.logo svg{
-  width:40px;
-  height:40px;
-  stroke:var(--neon-green);
-  fill:none;
-  stroke-width:2;
-  filter:drop-shadow(0 0 10px var(--neon-green));
-  animation:dragonGlow 3s infinite alternate;
-}
-@keyframes dragonGlow{
-  from{filter:drop-shadow(0 0 5px var(--neon-green));}
-  to{filter:drop-shadow(0 0 20px var(--neon-cyan));}
-}
-
-button{
-  padding:10px 18px;
-  border:1px solid var(--neon-green);
-  background:transparent;
-  color:var(--neon-green);
-  cursor:pointer;
-  border-radius:6px;
-  transition:0.3s;
-  font-family:'Orbitron',sans-serif;
-}
-button:hover{
-  background:var(--neon-green);
-  color:#000;
-  box-shadow:0 0 20px var(--neon-green);
-}
-
-.container{
-  margin-top:100px;
-  padding:20px;
-  position:relative;
-  z-index:1;
-  max-width:1500px;
-  margin-left:auto;
-  margin-right:auto;
-}
-
-.page{display:none;}
-.page.active{display:block;}
-
-.card{
-  background:var(--panel);
-  border:1px solid var(--neon-cyan);
-  padding:20px;
-  border-radius:12px;
-  box-shadow:0 0 20px rgba(0,234,255,0.2);
-  margin-bottom:20px;
-}
-
-.big-button{
-  display:block;
-  margin:30px auto;
-  padding:25px;
-  font-size:20px;
-  max-width:400px;
-  width:100%;
-  border:1px solid var(--neon-cyan);
-  color:var(--neon-cyan);
-}
-.big-button:hover{
-  background:var(--neon-cyan);
-  color:#000;
-  box-shadow:0 0 25px var(--neon-cyan);
-}
-
-.status-next{text-align:center;margin-top:10px}
-.feedback-confirmacao{text-align:center;margin-top:10px;color:var(--neon-green);opacity:0;transition:0.3s}
-.feedback-confirmacao.show{opacity:1}
-
-.autosave{
-  position:fixed;
-  top:80px;
-  right:20px;
-  font-size:12px;
-}
-.autosave.saving{color:var(--warn)}
-.autosave.saved{color:var(--neon-green)}
-
-.config-panel{display:none;margin:15px 0;padding:15px;border:1px solid var(--neon-cyan)}
-
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{color:var(--neon-green);border-bottom:1px solid var(--neon-green);padding:8px}
-td{padding:6px;border-bottom:1px solid rgba(0,255,159,0.2);text-align:center}
-.weekend{background:rgba(0,255,159,0.05)}
-
-input,select{
-  background:#0f0f15;
-  border:1px solid var(--neon-cyan);
-  color:var(--neon-cyan);
-  padding:5px;
-  border-radius:5px;
-}
-
-@media(max-width:1024px){
-  table{display:block;overflow-x:auto;white-space:nowrap}
-}
-</style>
+<link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
+<a href="#mainContent" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" onfocus="this.style.left='10px';this.style.top='10px';this.style.width='auto';this.style.height='auto';this.style.padding='8px';this.style.background='#000';this.style.color='#fff';this.style.zIndex='10000'">Pular para conteúdo principal</a>
 
 <div id="loadingScreen">
 DRAGONPOINT INITIALIZING...
@@ -210,357 +38,86 @@ DRAGONPOINT INITIALIZING...
 DragonPoint
 </div>
 <div>
-<button onclick="showPage('home')">HOME</button>
-<button onclick="showPage('registro')">REGISTRO</button>
+<button id="navHome" type="button" aria-label="Ir para página inicial">HOME</button>
+<button id="navRegistro" type="button" aria-label="Ir para página de registros">REGISTRO</button>
 </div>
 </div>
 
-<div class="autosave" id="saveStatus">Pronto</div>
+<div class="autosave" id="saveStatus" aria-live="polite">Pronto</div>
+<div class="file-sync-status" id="fileSyncStatus" aria-live="polite">JSON não vinculado</div>
+<div id="appFeedback" role="status" aria-live="polite" style="position:fixed;left:20px;top:80px;font-size:12px;color:var(--neon-cyan)"></div>
+<div id="updateBanner" style="display:none;position:fixed;left:20px;bottom:20px;z-index:20" class="card"><span>Nova versão disponível.</span> <button id="btnUpdateApp" type="button">Atualizar</button></div>
 
-<div class="container">
+<main id="mainContent" class="container">
 
 <div id="home" class="page active card">
 <h2 style="text-align:center;color:var(--neon-cyan)">BATER PONTO</h2>
-<button class="big-button" onclick="registrarPonto()">⚡ REGISTRAR HORÁRIO ⚡</button>
+<button id="btnRegistrarPonto" type="button" class="big-button" aria-label="Registrar horário do ponto">⚡ REGISTRAR HORÁRIO ⚡</button>
 <div class="status-next" id="nextStatus">Próximo: Entrada</div>
-<div id="confirmacaoVisual" class="feedback-confirmacao">✓ Ponto registrado</div>
+<div id="confirmacaoVisual" class="feedback-confirmacao" aria-live="polite">✓ Ponto registrado</div>
 </div>
 
 <div id="registro" class="page card">
 <h2 style="color:var(--neon-green)">REGISTROS</h2>
 
-<button onclick="toggleConfig()">⚙ Configurações</button>
-<button onclick="selecionarArquivo()">Vincular JSON</button>
-<button onclick="salvarArquivoManual()">Salvar JSON</button>
-<button onclick="gerarPDF()">PDF</button>
-<button onclick="addRow()">Adicionar Dia</button>
+<div class="registro-actions">
+<button id="btnToggleConfig" type="button" aria-label="Abrir configurações">⚙ Configurações</button>
+<button id="btnImportJson" type="button" aria-label="Importar dados de arquivo JSON">Importar JSON</button>
+<button id="btnLinkJson" type="button" aria-label="Vincular arquivo JSON">Vincular JSON</button>
+<button id="btnUnlinkJson" type="button" aria-label="Desvincular arquivo JSON">Desvincular JSON</button>
+<button id="btnReauthorizeJson" type="button" aria-label="Reautorizar acesso ao arquivo JSON">Reautorizar JSON</button>
+<button id="btnSaveJson" type="button" aria-label="Salvar dados no arquivo JSON vinculado">Salvar JSON</button>
+<button id="btnReport" type="button" aria-label="Exportar relatório HTML ou CSV">RELATÓRIO</button>
+<button id="btnAddRow" type="button" aria-label="Adicionar uma nova linha de dia">Adicionar Dia</button>
+</div>
 
 <div class="config-panel" id="configPanel">
-Valor Hora Normal:
+<label for="hourlyRate">Valor Hora Normal:</label>
 <input id="hourlyRate" type="number" step="0.01" value="12.50">
-Valor Hora Extra:
+<label for="overtimeRate">Valor Hora Extra:</label>
 <input id="overtimeRate" type="number" step="0.01" value="18.75">
-Valor Feriado:
+<label for="holidayRate">Valor Feriado:</label>
 <input id="holidayRate" type="number" step="0.01" value="25.00">
 </div>
 
 <br>
 
-<table>
+<p id="tableHelp" style="margin:0 0 8px 0;font-size:12px;color:var(--neon-cyan)">Use Tab para navegar pelas células e Enter para confirmar edição.</p>
+<div class="table-wrap"><table aria-label="Tabela de registros de horas" aria-describedby="tableHelp">
+<caption style="text-align:left;padding:8px 0;color:var(--neon-cyan)">Registros de jornada e cálculo de horas</caption>
 <thead>
 <tr>
-<th>Data</th>
-<th>Dia</th>
-<th>Entrada</th>
-<th>Saída Int.</th>
-<th>Retorno</th>
-<th>Saída Final</th>
-<th>Tipo</th>
-<th>Jornada</th>
-<th>Horas</th>
-<th>Extras</th>
-<th>Valor</th>
-<th>Ação</th>
+<th scope="col">Data</th>
+<th scope="col">Dia</th>
+<th scope="col">Entrada</th>
+<th scope="col">Saída Int.</th>
+<th scope="col">Retorno</th>
+<th scope="col">Saída Final</th>
+<th scope="col">Tipo</th>
+<th scope="col">Jornada</th>
+<th scope="col">Horas</th>
+<th scope="col">Extras</th>
+<th scope="col">Valor</th>
+<th scope="col">Ação</th>
 </tr>
 </thead>
 <tbody id="timeSheetBody"></tbody>
 <tfoot>
 <tr>
 <td colspan="8">Total</td>
-<td id="totalHours">0h</td>
-<td id="totalExtras">0h</td>
-<td id="totalPay">R$ 0,00</td>
+<td id="totalHours" aria-live="polite">0h</td>
+<td id="totalExtras" aria-live="polite">0h</td>
+<td id="totalPay" aria-live="polite">R$ 0,00</td>
 <td></td>
 </tr>
 </tfoot>
-</table>
+</table></div>
 </div>
 
-</div>
+</main>
 
-<script>
-window.addEventListener("load",()=>{
-setTimeout(()=>{document.getElementById("loadingScreen").style.display="none"},2500);
-});
-
-/* PARTICLES */
-const canvas=document.getElementById("particles");
-const ctx=canvas.getContext("2d");
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
-let particles=[];
-for(let i=0;i<70;i++){
-particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*2+1,d:Math.random()*1});
-}
-function draw(){
-ctx.clearRect(0,0,canvas.width,canvas.height);
-ctx.fillStyle="#00ff9f";
-particles.forEach(p=>{
-ctx.beginPath();
-ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-ctx.fill();
-p.y+=p.d;
-if(p.y>canvas.height){p.y=0;p.x=Math.random()*canvas.width;}
-});
-requestAnimationFrame(draw);
-}
-draw();
-
-const STORAGE_KEY="controleHorasFINALMASTER";
-const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-let saveTimer=null;
-let fileHandle=null;
-
-/* NAVEGAÇÃO */
-function showPage(id){
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
-
-/* AUTOSAVE */
-function showSaving(){saveStatus.textContent="Salvando...";saveStatus.className="autosave saving";}
-function showSaved(){saveStatus.textContent="Salvo ✓";saveStatus.className="autosave saved";setTimeout(()=>{saveStatus.textContent="Pronto";saveStatus.className="autosave";},1500);}
-function scheduleSave(){showSaving();if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveAll(),600);}
-
-function collectState(){
-  const rows=[];
-  document.querySelectorAll("#timeSheetBody tr").forEach(r=>{
-    const i=r.querySelectorAll("input");
-    rows.push({
-      date:i[0].value,
-      entry1:i[1].value,
-      exit1:i[2].value,
-      entry2:i[3].value,
-      exit2:i[4].value,
-      tipo:r.querySelector(".tipo").value,
-      jornada:r.querySelector(".jornada").value
-    });
-  });
-  return{
-    settings:{
-      hourlyRate:hourlyRate.value,
-      overtimeRate:overtimeRate.value,
-      holidayRate:holidayRate.value
-    },
-    rows
-  };
-}
-
-async function saveAll(){
-  const state=collectState();
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
-  if(fileHandle){
-    const writable=await fileHandle.createWritable();
-    await writable.write(JSON.stringify(state,null,2));
-    await writable.close();
-  }
-  showSaved();
-}
-
-/* FILE SYSTEM */
-async function selecionarArquivo(){
-  fileHandle=await window.showSaveFilePicker({
-    suggestedName:"registro_horas.json",
-    types:[{description:"JSON",accept:{"application/json":[".json"]}}]
-  });
-  alert("Arquivo vinculado com sucesso.");
-}
-function salvarArquivoManual(){
-  if(!fileHandle){alert("Vincule um arquivo primeiro.");return;}
-  saveAll();
-}
-
-/* LOAD */
-function loadState(){
-  const raw=localStorage.getItem(STORAGE_KEY);
-  if(!raw)return;
-  const state=JSON.parse(raw);
-  if(state.settings){
-    hourlyRate.value=state.settings.hourlyRate;
-    overtimeRate.value=state.settings.overtimeRate;
-    holidayRate.value=state.settings.holidayRate;
-  }
-  if(state.rows){
-    state.rows.forEach(r=>addRow(r));
-  }
-}
-
-/* CONFIG */
-function toggleConfig(){
-  configPanel.style.display=configPanel.style.display==="none"?"block":"none";
-}
-
-/* AUTO DATA + ROW */
-function addRow(data={}){
-  const tbody=timeSheetBody;
-  const tr=document.createElement("tr");
-
-  let novaData=data.date;
-  if(!novaData){
-    const linhas=tbody.querySelectorAll("tr");
-    if(linhas.length){
-      const ultima=linhas[linhas.length-1].querySelector("input[type=date]").value;
-      if(ultima){
-        const d=new Date(ultima+"T00:00:00");
-        d.setDate(d.getDate()+1);
-        novaData=d.toISOString().split("T")[0];
-      }
-    }
-    if(!novaData)novaData=new Date().toISOString().split("T")[0];
-  }
-
-  tr.innerHTML=`
-  <td><input type="date" value="${novaData}"></td>
-  <td class="day"></td>
-  <td><input type="time" value="${data.entry1||""}"></td>
-  <td><input type="time" value="${data.exit1||""}"></td>
-  <td><input type="time" value="${data.entry2||""}"></td>
-  <td><input type="time" value="${data.exit2||""}"></td>
-  <td>
-    <select class="tipo">
-      <option value="normal">Útil</option>
-      <option value="holiday">Feriado</option>
-    </select>
-  </td>
-  <td>
-    <select class="jornada">
-      <option value="8">8h</option>
-      <option value="4">4h</option>
-    </select>
-  </td>
-  <td class="h">0h</td>
-  <td class="e">0h</td>
-  <td class="v">R$ 0,00</td>
-  <td><button onclick="deleteRow(this)">X</button></td>
-  `;
-  tbody.appendChild(tr);
-
-  if(data.tipo)tr.querySelector(".tipo").value=data.tipo;
-  if(data.jornada)tr.querySelector(".jornada").value=data.jornada;
-
-  tr.querySelectorAll("input,select").forEach(el=>{
-    el.addEventListener("input",()=>{updateDay(tr);calculateRow(tr);scheduleSave();});
-    el.addEventListener("change",()=>{updateDay(tr);calculateRow(tr);scheduleSave();});
-  });
-
-  updateDay(tr);
-  calculateRow(tr);
-}
-
-/* DIA */
-function updateDay(row){
-  const date=row.querySelector("input[type=date]").value;
-  if(!date)return;
-  const d=new Date(date+"T00:00:00");
-  row.querySelector(".day").textContent=diasSemana[d.getDay()];
-  row.classList.toggle("weekend",d.getDay()===0||d.getDay()===6);
-}
-
-/* REGISTRO SEQUENCIAL */
-function registrarPonto(){
-  const hoje=new Date().toISOString().split("T")[0];
-  let row=[...timeSheetBody.querySelectorAll("tr")]
-    .find(r=>r.querySelector("input[type=date]").value===hoje);
-
-  if(!row){addRow();row=timeSheetBody.lastChild;}
-
-  const inputs=row.querySelectorAll("input[type=time]");
-  const hora=new Date().toTimeString().slice(0,5);
-
-  for(let i=0;i<inputs.length;i++){
-    if(!inputs[i].value){
-      inputs[i].value=hora;
-      atualizarStatus(i+1);
-      break;
-    }
-  }
-
-  calculateRow(row);
-  scheduleSave();
-
-  const botao=document.querySelector(".big-button");
-  botao.classList.add("pulse","flash-success");
-  setTimeout(()=>botao.classList.remove("pulse","flash-success"),400);
-
-  if(navigator.vibrate){navigator.vibrate([100,50,100]);}
-  tocarSom();
-
-  confirmacaoVisual.classList.add("show");
-  setTimeout(()=>confirmacaoVisual.classList.remove("show"),1500);
-}
-
-function atualizarStatus(pos){
-  const labels=["Entrada","Saída","Retorno","Saída Final"];
-  if(pos<4)nextStatus.textContent="Próximo: "+labels[pos];
-  else nextStatus.textContent="Dia completo ✓";
-}
-
-function tocarSom(){
-  const audio=new Audio("data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAA");
-  audio.play().catch(()=>{});
-}
-
-/* CÁLCULO */
-function parseTime(t){if(!t)return null;const[h,m]=t.split(":").map(Number);return h*60+m;}
-function calculateRow(row){
-  const i=row.querySelectorAll("input");
-  const t1=parseTime(i[1].value);
-  const t2=parseTime(i[2].value);
-  const t3=parseTime(i[3].value);
-  const t4=parseTime(i[4].value);
-
-  let totalMin=0;
-  if(t1!==null&&t2!==null)totalMin+=Math.max(0,t2-t1);
-  if(t3!==null&&t4!==null)totalMin+=Math.max(0,t4-t3);
-
-  const hours=totalMin/60;
-  const jornada=parseFloat(row.querySelector(".jornada").value)||8;
-  const tipo=row.querySelector(".tipo").value;
-
-  const hourly=parseFloat(hourlyRate.value)||0;
-  const overtime=parseFloat(overtimeRate.value)||0;
-  const holiday=parseFloat(holidayRate.value)||0;
-
-  let normal=Math.min(jornada,hours);
-  let extra=Math.max(0,hours-jornada);
-  let pay= tipo==="holiday"?hours*holiday:(normal*hourly)+(extra*overtime);
-
-  row.querySelector(".h").textContent=normal.toFixed(2)+"h";
-  row.querySelector(".e").textContent=extra.toFixed(2)+"h";
-  row.querySelector(".v").textContent=pay.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-
-  calculateTotals();
-}
-function calculateTotals(){
-  let th=0,te=0,tp=0;
-  document.querySelectorAll("#timeSheetBody tr").forEach(r=>{
-    th+=parseFloat(r.querySelector(".h").textContent)||0;
-    te+=parseFloat(r.querySelector(".e").textContent)||0;
-    const v=r.querySelector(".v").textContent.replace("R$","").replace(".","").replace(",",".");
-    tp+=parseFloat(v)||0;
-  });
-  totalHours.textContent=th.toFixed(2)+"h";
-  totalExtras.textContent=te.toFixed(2)+"h";
-  totalPay.textContent=tp.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-}
-
-/* PDF */
-function gerarPDF(){
-  const doc=new jspdf.jsPDF();
-  doc.text("TOTAL A RECEBER: "+totalPay.textContent,105,280,{align:"center"});
-  doc.save("registro_horas.pdf");
-}
-
-function deleteRow(btn){
-  btn.closest("tr").remove();
-  scheduleSave();
-}
-
-document.addEventListener("DOMContentLoaded",()=>{
-  loadState();
-  if(!timeSheetBody.querySelector("tr"))addRow();
-});
-</script>
+<script src="./ui-utils.js"></script>
+<script src="./app-ui.js"></script>
 
 </body>
 </html>

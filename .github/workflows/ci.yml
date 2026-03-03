@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run unit tests
+        run: node --test tests/*.test.js
+      - name: Install Playwright Python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright
+          python -m playwright install chromium
+      - name: Run smoke integration
+        run: |
+          set -euo pipefail
+          python -m http.server 4173 >/tmp/http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill ${SERVER_PID} >/dev/null 2>&1 || true' EXIT
+          python tests/ui-integration.playwright.py || (cat /tmp/http.log && exit 1)
